@@ -3,3 +3,6 @@
 # PowerShell 스크립트는 UTF-8 BOM을 유지해야 한국어가 깨지지 않으므로 줄바꿈만 자동 처리한다
 *.ps1  text
 *.md   text
+# setup.command(macOS 더블클릭)은 LF, setup.bat(Windows)은 CRLF여야 실행된다
+*.command text eol=lf
+*.bat     text eol=crlf

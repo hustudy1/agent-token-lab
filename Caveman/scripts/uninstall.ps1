@@ -51,7 +51,8 @@ function Invoke-Cmd {
   # 호출하는 동안만 Continue로 둔다
   $prev = $ErrorActionPreference
   $ErrorActionPreference = 'Continue'
-  try { & $File @Arguments } finally { $ErrorActionPreference = $prev }
+  # 출력은 화면으로 바로 보낸다. 그러지 않으면 함수 반환값에 섞여 실패 판정이 틀어지고 화면에도 안 보인다
+  try { & $File @Arguments | Out-Host } finally { $ErrorActionPreference = $prev }
   return ($LASTEXITCODE -eq 0)
 }
 
@@ -99,9 +100,9 @@ $SkillNames = @(
 # 에이전트별 전역 스킬 폴더
 #   Claude Code: .claude\skills
 #   Codex: skills CLI는 .agents\skills 에 설치한다 (2026-10-07 실제 확인). .codex\skills 도 함께 본다
-$ClaudeSkillDirs = @((Join-Path $HOME '.claude\skills'))
-$CodexSkillDirs  = @((Join-Path $HOME '.agents\skills'), (Join-Path $CodexDir 'skills'))
-$SkillDirs = $ClaudeSkillDirs + $CodexSkillDirs + @((Join-Path $HOME '.config\agents\skills'))
+$ClaudeSkillDirs = @(([IO.Path]::Combine($HOME, '.claude', 'skills')))
+$CodexSkillDirs  = @(([IO.Path]::Combine($HOME, '.agents', 'skills')), (Join-Path $CodexDir 'skills'))
+$SkillDirs = $ClaudeSkillDirs + $CodexSkillDirs + @(([IO.Path]::Combine($HOME, '.config', 'agents', 'skills')))
 
 # 폴더들에 있는 Caveman 스킬 이름을 중복 없이 돌려준다
 function Get-CavemanNames {
@@ -133,12 +134,12 @@ function Find-Leftovers {
   foreach ($base in $SkillDirs) {
     foreach ($n in @(Get-CavemanNames @($base))) { Write-Found "스킬: $(Join-Path $base $n)" -After:$After }
   }
-  $plugins = Join-Path $HOME '.claude\plugins'
+  $plugins = [IO.Path]::Combine($HOME, '.claude', 'plugins')
   if (Test-Path -LiteralPath $plugins -PathType Container) {
     Get-ChildItem -LiteralPath $plugins -Recurse -Depth 3 -Filter '*caveman*' -ErrorAction SilentlyContinue |
       Select-Object -First 10 | ForEach-Object { Write-Found "플러그인: $($_.FullName)" -After:$After }
   }
-  $settings = Join-Path $HOME '.claude\settings.json'
+  $settings = [IO.Path]::Combine($HOME, '.claude', 'settings.json')
   if ((Test-Path -LiteralPath $settings -PathType Leaf) -and
       (Select-String -LiteralPath $settings -Pattern 'caveman' -SimpleMatch -Quiet)) {
     Write-Found '설정: .claude\settings.json 에 caveman 항목 (훅·상태줄)' -After:$After

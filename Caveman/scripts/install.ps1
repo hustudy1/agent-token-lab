@@ -59,7 +59,8 @@ function Invoke-Cmd {
   # 호출하는 동안만 Continue로 둔다
   $prev = $ErrorActionPreference
   $ErrorActionPreference = 'Continue'
-  try { & $File @Arguments } finally { $ErrorActionPreference = $prev }
+  # 출력은 화면으로 바로 보낸다. 그러지 않으면 함수 반환값에 섞여 실패 판정이 틀어지고 화면에도 안 보인다
+  try { & $File @Arguments | Out-Host } finally { $ErrorActionPreference = $prev }
   return ($LASTEXITCODE -eq 0)
 }
 
@@ -129,7 +130,7 @@ Write-Step '설정 백업'
 Write-Info "위치: $BackupDir"
 if ($DryRun) { Write-Info "[dry-run] mkdir $BackupDir" }
 else { [void](New-Item -ItemType Directory -Force -Path $BackupDir) }
-foreach ($f in @((Join-Path $HOME '.claude\settings.json'), (Join-Path $HOME '.claude\CLAUDE.md'))) {
+foreach ($f in @(([IO.Path]::Combine($HOME, '.claude', 'settings.json')), ([IO.Path]::Combine($HOME, '.claude', 'CLAUDE.md')))) {
   if (Test-Path -LiteralPath $f -PathType Leaf) {
     if ($DryRun) { Write-Info "[dry-run] copy $f" }
     else { Copy-Item -LiteralPath $f -Destination $BackupDir -Force; Write-Ok $f }
@@ -180,7 +181,7 @@ if ($Failed.Count -gt 0) {
   foreach ($f in $Failed) { Write-Info "  - $f" }
 }
 else {
-  Write-Ok '설치 완료'
+  if ($DryRun) { Write-Ok 'dry-run 완료 (실제로 바꾼 것은 없습니다)' } else { Write-Ok '설치 완료' }
 }
 
 Write-Host @'

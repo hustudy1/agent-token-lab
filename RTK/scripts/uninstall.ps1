@@ -51,7 +51,8 @@ function Invoke-Cmd {
   # 호출하는 동안만 Continue로 둔다
   $prev = $ErrorActionPreference
   $ErrorActionPreference = 'Continue'
-  try { & $File @Arguments } finally { $ErrorActionPreference = $prev }
+  # 출력은 화면으로 바로 보낸다. 그러지 않으면 함수 반환값에 섞여 실패 판정이 틀어지고 화면에도 안 보인다
+  try { & $File @Arguments | Out-Host } finally { $ErrorActionPreference = $prev }
   return ($LASTEXITCODE -eq 0)
 }
 
@@ -97,8 +98,8 @@ function Find-Leftovers {
   param([switch]$After)
   $script:LeftCount = 0
   $textChecks = @(
-    @{ Label = 'Claude Code 훅';   Path = (Join-Path $HOME '.claude\settings.json'); Pattern = 'rtk hook|rtk-rewrite' },
-    @{ Label = 'Claude Code 참조'; Path = (Join-Path $HOME '.claude\CLAUDE.md');     Pattern = '@\S*RTK\.md' },
+    @{ Label = 'Claude Code 훅';   Path = ([IO.Path]::Combine($HOME, '.claude', 'settings.json')); Pattern = 'rtk hook|rtk-rewrite' },
+    @{ Label = 'Claude Code 참조'; Path = ([IO.Path]::Combine($HOME, '.claude', 'CLAUDE.md'));     Pattern = '@\S*RTK\.md' },
     @{ Label = 'Codex 훅';         Path = (Join-Path $CodexDir 'hooks.json');        Pattern = 'rtk hook' },
     @{ Label = 'Codex 참조';       Path = (Join-Path $CodexDir 'AGENTS.md');         Pattern = '@\S*RTK\.md' }
   )
@@ -111,7 +112,7 @@ function Find-Leftovers {
       $hits | Select-Object -First 5 | ForEach-Object { Write-Info ("      {0}: {1}" -f $_.LineNumber, $_.Line.Trim()) }
     }
   }
-  foreach ($f in @(@{ Label = 'Claude Code 파일'; Path = (Join-Path $HOME '.claude\RTK.md') },
+  foreach ($f in @(@{ Label = 'Claude Code 파일'; Path = ([IO.Path]::Combine($HOME, '.claude', 'RTK.md')) },
                    @{ Label = 'Codex 파일';       Path = (Join-Path $CodexDir 'RTK.md') })) {
     if (Test-Path -LiteralPath $f.Path -PathType Leaf) { Write-Found "$($f.Label): $($f.Path)" -After:$After }
   }

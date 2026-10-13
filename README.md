@@ -55,9 +55,7 @@ Claude Code와 Codex 같은 AI 코딩 에이전트의 토큰 사용량을 줄이
 | Caveman 스킬 + RTK | 줄이는 곳이 달라서 함께 써도 됩니다. |
 | Caveman 프록시 + RTK | 둘 다 Claude Code에서 Bash 명령 출력을 줄이는 훅을 겁니다. 겹치므로 하나만 쓰세요. |
 
-## 처음 시작하기
-
-clone한 뒤 아래 순서대로 진행하세요. 명령은 macOS 기준이고, Windows는 [다른 컴퓨터에 바로 적용](#다른-컴퓨터에-바로-적용)의 PowerShell 명령을 쓰면 됩니다.
+## 시작하기
 
 **1. 받기**
 
@@ -66,94 +64,117 @@ git clone https://github.com/hustudy1/agent-token-lab.git
 cd agent-token-lab
 ```
 
-**2. 준비물 확인**
+**2. 실행**
 
-```bash
-node --version    # 22.13 이상 (Caveman에 필요)
-brew --version    # macOS에서 RTK 설치에 사용
-claude --version  # 연결할 에이전트 (codex --version 도)
+| OS | 방법 |
+|---|---|
+| macOS / Linux | `bash setup.sh` (macOS는 Finder에서 `setup.command` 더블클릭도 됨) |
+| Windows | `setup.bat` 더블클릭 |
+
+**3. 메뉴에서 번호 고르기**
+
+먼저 할 작업을 고르고, 다음 화면에서 서비스를 고릅니다.
+
+```
+==============================================================
+  Caveman · RTK 구성 작업 (agent-token-lab)
+==============================================================
+  현재 상태 — Caveman: 없음 · RTK: 없음
+  원하는 작업을 고르세요
+  1) 설치
+  2) 삭제
+  3) 설치 상태 자세히 보기
+  4) 사용량·절약 보기
+  0) 끝내기
+  선택: 1
+
+  설치할 서비스를 고르세요
+  1) Caveman   답변을 짧게 해 출력 토큰 절약 · 자체 측정: 비용 약 -7%    [현재: 없음]
+  2) RTK       셸 명령 출력 압축 · 자체 측정: 효과 없음                [현재: 없음]
+  3) 둘 다
+  9) 뒤로
+  선택: 1
 ```
 
-**3. 설치 전 사용량 기록 (기준선)**
+서비스를 고르면 **무엇을 바꿀지 먼저 보여주고**(아직 아무것도 바꾸지 않음) "진행할까요?"를 묻습니다. `y`를 누르면 실행하고, 끝나면 처음 메뉴로 돌아갈지 묻습니다. 목록에 없는 번호를 넣으면 다시 묻습니다.
 
-```bash
-npx ccusage@latest claude daily | tee ~/ai_tokens_baseline.txt
-```
+**4) 사용량·절약 보기**에서는 이 컴퓨터의 실제 사용 기록으로 어디에 토큰이 쓰이는지 봅니다.
 
-**4. Caveman 스킬 설치** — 먼저 `--dry-run`으로 무엇을 하는지 확인한 뒤 실행합니다.
+| 메뉴 | 보여주는 것 |
+|---|---|
+| 일별 사용량 | 최근 30일 날짜별 토큰·비용 ([ccusage](https://ccusage.com/)로 로컬 기록을 읽음. Codex가 있으면 Codex도) |
+| 사용량이 큰 대화 10개 | 비용이 큰 대화(세션) 순위. 오래 이어진 대화를 찾는 데 씀 |
+| 사용량 구성 | 캐시 읽기·캐시 쓰기·출력이 각각 비용의 몇 %인지와 해석 |
+| 상시 로딩 점검 | 매 세션 항상 실리는 CLAUDE.md·AGENTS.md(@import 포함)·스킬 설명·MCP 서버와 줄일 곳 |
+| RTK 자체 추정 절약량 | `rtk gain` 결과 (RTK 자체 추정이라 청구액이 아니라는 안내와 함께) |
+| 자체 측정 결과 | 이 저장소의 A/B 측정 요약 |
 
-```bash
-cd Caveman/scripts
-bash install.sh --dry-run
-bash install.sh
-```
+비용은 API 단가로 환산한 값입니다. 구독이면 실제로는 사용 한도에서 차감됩니다. 사용량 기능에는 Node.js(ccusage용)가 필요하고, macOS·Linux에서는 python3도 씁니다.
 
-Claude Code를 새 세션으로 열고 `/caveman`이 켜지는지 확인합니다.
+추천은 **Caveman만 설치**입니다. RTK는 자체 측정에서 효과가 없었습니다([측정 기록](test/01_measure.md#측정-기록)).
 
-**5. 효과 측정** — 정확하게 보려면 [test/](test/01_measure.md)의 A/B 실험을 쓰세요. 간단히는 며칠 쓴 뒤 다시 기록해 비교합니다.
+설치가 끝나면 Claude Code에서 **새 대화**를 열고 `/caveman`을 입력해 켜지는지 확인하세요. 터미널과 VS Code 확장 모두 적용됩니다.
 
-```bash
-npx ccusage@latest claude daily
-```
+### 메뉴 없이 실행 (에이전트에게 맡길 때)
 
-기준선과 비교합니다.
+에이전트에게 "agent-token-lab 폴더에서 `bash setup.sh caveman -y` 실행해서 Caveman 설치해줘"처럼 시키면 됩니다. `-y`를 빼면 계획을 보여준 뒤 확인을 묻습니다.
 
-**6. (선택) RTK 설치** — 측정 결과를 보고 필요할 때만 설치합니다. 독립 측정에서는 비용이 줄지 않았습니다([RTK 측정 결과](RTK/01_install.md#측정-결과-요약) 참고).
-
-```bash
-cd ../../RTK/scripts
-bash install.sh --dry-run
-bash install.sh
-```
-
-**되돌리기:** 각 폴더의 `bash uninstall.sh`를 실행합니다. 설치 전 설정 백업은 `~/.ai_tokens_backup/`에 있습니다.
-
-`./install.sh`처럼 직접 실행하다가 권한 오류(`permission denied`)가 나면 `bash install.sh`로 실행하세요. ZIP으로 내려받는 등 실행 권한이 빠진 경우에도 동작합니다.
-
-## 다른 컴퓨터에 바로 적용
-
-새 Mac이나 Windows PC에서 바로 설치할 수 있도록 도구마다 설치·제거 스크립트가 있습니다. 먼저 `dry-run`으로 무엇이 바뀌는지 확인한 뒤 실행하세요.
-
-| 위치 | macOS / Linux | Windows |
+| 하려는 것 | macOS / Linux | Windows |
 |---|---|---|
-| `Caveman/scripts/` | `install.sh`, `uninstall.sh` | `install.ps1`, `uninstall.ps1` |
-| `RTK/scripts/` | `install.sh`, `uninstall.sh` | `install.ps1`, `uninstall.ps1` |
+| Caveman 설치 | `bash setup.sh caveman -y` | `setup.bat caveman -Yes` |
+| RTK 설치 | `bash setup.sh rtk -y` | `setup.bat rtk -Yes` |
+| 둘 다 설치 | `bash setup.sh all -y` | `setup.bat all -Yes` |
+| 설치 상태 확인 | `bash setup.sh status` | `setup.bat status` |
+| Caveman 제거 | `bash setup.sh remove-caveman -y` | `setup.bat remove-caveman -Yes` |
+| RTK 제거 | `bash setup.sh remove-rtk -y` | `setup.bat remove-rtk -Yes` |
+| 둘 다 제거 | `bash setup.sh remove-all -y` | `setup.bat remove-all -Yes` |
+| 일별 사용량·구성 | `bash setup.sh usage` | `setup.bat usage` |
+| 사용량이 큰 대화 10개 | `bash setup.sh sessions` | `setup.bat sessions` |
+| 상시 로딩 점검 | `bash setup.sh context <프로젝트 폴더>` | `setup.bat context <프로젝트 폴더>` |
+| RTK 자체 추정 절약량 | `bash setup.sh gain` | `setup.bat gain` |
+| 자체 측정 결과 | `bash setup.sh results` | `setup.bat results` |
 
-```bash
-# macOS / Linux — 예: RTK
-cd agent-token-lab/RTK/scripts
-./install.sh --dry-run
-./install.sh
-./uninstall.sh
-```
+### 준비물
 
-```powershell
-# Windows — 예: Caveman
-cd agent-token-lab\Caveman\scripts
-powershell -ExecutionPolicy Bypass -File .\install.ps1 -DryRun
-powershell -ExecutionPolicy Bypass -File .\install.ps1
-powershell -ExecutionPolicy Bypass -File .\uninstall.ps1
-```
+설정 메뉴가 확인해서 없으면 알려줍니다.
 
-옵션은 [Caveman](Caveman/01_install.md#스크립트로-설치제거)과 [RTK](RTK/01_install.md#스크립트로-설치제거) 구축 문서에 있습니다.
+- **Caveman:** Node.js 22.13 이상
+- **RTK:** macOS는 Homebrew(없으면 공식 설치 스크립트로 대신 설치), Windows는 winget
+- **에이전트:** Claude Code(터미널 또는 VS Code 확장)나 Codex. 설치된 것에만 연결합니다.
 
-모든 스크립트의 공통 동작:
+### 알아둘 점
 
-- **백업:** 설치 전에 관련 설정 파일을 `~/.ai_tokens_backup/<타임스탬프>-<도구>/`로 복사합니다.
-- **대상 선택:** 쓰고 있는 에이전트에만 설치합니다. Claude Code는 `claude` 명령이나 `~/.claude` 폴더가 있으면, Codex는 `codex` 명령이 있으면 설치 대상으로 봅니다.
-- **VS Code 확장도 적용:** Claude Code의 터미널(CLI)과 VS Code 확장은 설정 파일(`~/.claude/settings.json`)과 스킬 폴더(`~/.claude/skills/`)를 같이 씁니다. 그래서 한 번 설치하면 둘 다에 적용됩니다. CLI 없이 VS Code 확장만 써도 됩니다. 적용하려면 새 대화를 여세요.
-- **셸 설정 보존:** PATH나 셸 설정 파일은 고치지 않습니다. 추가할 줄만 알려줍니다.
+- **백업:** 설치·제거 전에 관련 설정 파일을 `~/.ai_tokens_backup/<날짜-시간>-<도구>/`로 복사합니다.
+- **되돌리기:** 메뉴 5~7번. 제거 후 남은 흔적이 있으면 경고합니다.
+- **셸 설정은 그대로 둡니다:** PATH나 셸 설정 파일을 고치지 않고, 필요하면 추가할 줄만 알려줍니다.
+- **효과 측정:** 실제로 얼마나 줄었는지는 [test/01_measure.md](test/01_measure.md)의 A/B 실험으로 잽니다.
+- **세부 옵션:** 도구별 스크립트를 직접 실행하는 방법(`--hook-only`, `--all-skills` 등)은 [Caveman](Caveman/01_install.md#스크립트로-설치제거)·[RTK](RTK/01_install.md#스크립트로-설치제거) 구축 문서에 있습니다.
 
-검증 상태:
+### 검증 상태
 
-- **`.sh`:** macOS 기본 bash 3.2에서 문법 검사, `--dry-run`, 옵션별 분기까지 확인했습니다. 실제 설치·제거는 돌려보지 않았습니다.
-- **`.ps1`:** 작성 환경에 PowerShell이 없어 실행 검증을 하지 못했습니다. Windows에서는 반드시 `-DryRun`부터 돌려 보세요.
+2026-10-13에 모든 기능을 실제로 실행해 확인했습니다. 설치·삭제는 실제 환경을 건드리지 않도록 격리한 홈 폴더에서 돌렸습니다(103개 항목 모두 통과).
+
+| 범위 | 확인한 것 |
+|---|---|
+| 설정 메뉴 (`setup.sh`, `setup.command`) | 설치·삭제 × Caveman·RTK·둘 다, 뒤로, 잘못된 번호 재질문, 처음 메뉴로 돌아가기, 메뉴 없이 쓰는 명령 전체 |
+| 도구별 스크립트 | 실제 설치 → 삭제 후 흔적 없음, 옵션(`--hook-only`, `--keep-binary`, `--all-skills`, `--no-codex`), Linux용 설치 경로(curl), Codex 연결 |
+| Windows 스크립트 (`.ps1` 5개) | PowerShell 파서 문법 검사, Windows 기본 PowerShell 5.1에서 안 되는 문법 없음, Mac용 PowerShell 7로 메뉴·Caveman 실제 설치·삭제 |
+| 측정 도구 | 옵션·오류 처리, 결과 요약 |
+| 사용량·절약 보기 | macOS(bash)·PowerShell 두 버전 모두 실제 사용 기록으로 실행, 기록·Node.js·RTK가 없는 경우의 안내, 메뉴 4번 경로 |
+
+**아직 확인하지 못한 것:** 실제 Windows PC에서의 실행(winget으로 RTK 설치, `setup.bat` 더블클릭), Caveman의 Claude Code 플러그인 방식(`--plugin`) 실제 설치. 계획 단계가 먼저 나오니 내용을 보고 진행하세요.
 
 ## 폴더 구성
 
 ```
 agent-token-lab/
 ├── README.md            # 이 문서 (프로젝트 전체 안내)
+├── setup.sh             # 설정 메뉴 (macOS / Linux)
+├── setup.command        # macOS 더블클릭용 → setup.sh 실행
+├── setup.ps1            # 설정 메뉴 (Windows)
+├── setup.bat            # Windows 더블클릭용 → setup.ps1 실행
+├── tools/
+│   └── usage_report.py  # 사용량 구성·대화 순위·상시 로딩 점검 (setup.sh가 호출)
 ├── Caveman/
 │   ├── 01_install.md    # 구성요소, 측정 결과, 설치 방식, 스크립트 옵션, 구축 방법
 │   └── scripts/

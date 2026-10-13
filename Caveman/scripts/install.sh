@@ -140,7 +140,7 @@ info "위치: $BACKUP_DIR"
 run mkdir -p "$BACKUP_DIR"
 for f in "$HOME/.claude/settings.json" "$HOME/.claude/CLAUDE.md"; do
   if [ -f "$f" ]; then
-    run cp "$f" "$BACKUP_DIR/$(basename "$f")" && ok "$f"
+    run cp "$f" "$BACKUP_DIR/$(basename "$f")" && [ "$DRY_RUN" -eq 0 ] && ok "$f"
   fi
 done
 
@@ -187,7 +187,7 @@ step "결과"
 if [ -n "$FAILED" ]; then
   err "실패한 단계가 있습니다:$FAILED"
 else
-  ok "설치 완료"
+  if [ "$DRY_RUN" -eq 1 ]; then ok "dry-run 완료 (실제로 바꾼 것은 없습니다)"; else ok "설치 완료"; fi
 fi
 
 cat <<EOF
