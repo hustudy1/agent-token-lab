@@ -3,13 +3,13 @@
 # RTK 제거 (macOS / Linux)
 #   사용법: ./uninstall.sh [옵션]      Windows는 uninstall.ps1
 #
-# 확인 기준: RTK v0.50.0 · 2026-09-29 · macOS 기본 bash 3.2에서 동작
+# 확인 기준: RTK v1.0.1 · 2026-10-22 · macOS 기본 bash 3.2에서 동작
 # 순서: 설치 상태 표시 → Claude Code 연결 해제 → Codex 연결 해제 → 바이너리 삭제 → 제거 확인
 #   (바이너리를 먼저 지우면 rtk 명령이 없어 연결 해제를 못 하므로 이 순서를 지킨다)
 
 set -u
 
-SCRIPT_VERSION="2026-09-29"
+SCRIPT_VERSION="2026-10-22"
 CODEX_DIR="${CODEX_HOME:-$HOME/.codex}"
 BACKUP_ROOT="$HOME/.ai_tokens_backup"
 

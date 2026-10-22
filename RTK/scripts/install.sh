@@ -4,13 +4,13 @@
 #   사용법: ./install.sh [옵션]        Windows는 install.ps1
 #   제거:   ./uninstall.sh
 #
-# 확인 기준: RTK v0.50.0 · 2026-09-29 · macOS 기본 bash 3.2에서 동작
+# 확인 기준: RTK v1.0.1 · 2026-10-22 · macOS 기본 bash 3.2에서 동작 (Codex 훅은 v0.50.0부터)
 # 설치 방식: macOS는 Homebrew(없으면 공식 설치 스크립트), Linux는 공식 설치 스크립트
 # 연결: Claude Code와 Codex 모두 PreToolUse 훅 (Codex 훅은 v0.50.0부터)
 
 set -u
 
-SCRIPT_VERSION="2026-09-29"
+SCRIPT_VERSION="2026-10-22"
 CODEX_DIR="${CODEX_HOME:-$HOME/.codex}"
 CODEX_HOOK_MIN="0.50.0"
 BACKUP_ROOT="$HOME/.ai_tokens_backup"
@@ -233,6 +233,7 @@ cat <<EOF
 $CODEX_NOTE      - 며칠 쓴 뒤 npx ccusage@latest claude daily 로 설치 전과 비교합니다.
 
     주의: rtk gain 수치는 RTK의 자체 추정이지 청구액이 아닙니다.
+    업데이트: ./update.sh
     제거: ./uninstall.sh
     백업: $BACKUP_DIR
 EOF

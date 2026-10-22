@@ -4,7 +4,7 @@
   RTK 제거 (Windows)
 
 .DESCRIPTION
-  확인 기준: RTK v0.50.0 · 2026-09-29 · PowerShell 5.1 이상
+  확인 기준: RTK v1.0.1 · 2026-10-22 · PowerShell 5.1 이상
   순서: 설치 상태 표시 → Claude Code 연결 해제 → Codex 연결 해제 → 바이너리 삭제 → 제거 확인
     (바이너리를 먼저 지우면 rtk 명령이 없어 연결 해제를 못 하므로 이 순서를 지킨다)
 
@@ -22,7 +22,7 @@ param(
 Set-StrictMode -Version 2.0
 $ErrorActionPreference = 'Stop'
 
-$ScriptVersion = '2026-09-29'
+$ScriptVersion = '2026-10-22'
 $BackupRoot    = Join-Path $HOME '.ai_tokens_backup'
 $Failed        = New-Object System.Collections.ArrayList
 

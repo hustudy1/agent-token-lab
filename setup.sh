@@ -5,7 +5,8 @@
 #   bash setup.sh                 메뉴에서 고르기
 #   bash setup.sh <명령> [-y]     메뉴 없이 바로 실행 (에이전트·자동화용)
 #
-# 명령: caveman | rtk | all | status | remove-caveman | remove-rtk | remove-all
+# 명령: caveman | rtk | all | update | update-caveman | update-rtk | status
+#       remove-caveman | remove-rtk | remove-all
 #       usage | sessions | context [프로젝트 폴더] | gain | results
 # 설치·제거 로직은 Caveman/scripts, RTK/scripts 의 스크립트에 있고, 이 파일은 그것을 불러 쓴다.
 # 실행 순서: 계획 보여주기(dry-run) → 확인 → 실행. -y 를 주면 확인 없이 진행한다.
@@ -42,7 +43,10 @@ agent-token-lab 설정
   caveman          Caveman 스킬 설치 (추천)
   rtk              RTK 설치
   all              둘 다 설치
-  status           설치 상태 확인
+  update           둘 다 최신으로 업데이트 (설치된 것만)
+  update-caveman   Caveman 업데이트
+  update-rtk       RTK 업데이트
+  status           설치 상태와 최신 버전 확인
   remove-caveman   Caveman 제거
   remove-rtk       RTK 제거
   remove-all       둘 다 제거
@@ -61,6 +65,7 @@ for a in "$@"; do
     -y|--yes)  ASSUME_YES=1 ;;
     -h|--help) usage; exit 0 ;;
     caveman|rtk|all|status|remove-caveman|remove-rtk|remove-all) CMD="$a" ;;
+    update|update-caveman|update-rtk) CMD="$a" ;;
     usage|sessions|context|gain|results) CMD="$a" ;;
     *)
       # context 다음에 오는 값은 점검할 프로젝트 폴더
@@ -77,6 +82,13 @@ esac
 
 # ---------- 상태 확인 ----------
 
+# GitHub의 RTK 최신 정식 릴리스 버전 (실패하면 빈 값)
+rtk_latest() {
+  have curl || return 0
+  curl -fsSL --max-time 5 https://api.github.com/repos/rtk-ai/rtk/releases/latest 2>/dev/null \
+    | sed -n 's/.*"tag_name": *"v\{0,1\}\([0-9][0-9.]*\)".*/\1/p' | head -1
+}
+
 show_status() {
   title "설치 상태"
   found=""
@@ -86,10 +98,22 @@ show_status() {
     [ -n "$names" ] && found="$found
     $d: $names"
   done
-  if [ -n "$found" ]; then ok "Caveman 스킬:$found"; else info "Caveman: 설치 안 됨"; fi
+  if [ -n "$found" ]; then
+    ok "Caveman 스킬:$found"
+    info "Caveman 최신 확인·적용: bash setup.sh update-caveman"
+  else
+    info "Caveman: 설치 안 됨"
+  fi
 
   if have rtk; then
     ok "RTK: $(rtk --version 2>/dev/null) ($(command -v rtk))"
+    latest="$(rtk_latest)"
+    current="$(rtk --version 2>/dev/null | awk '{print $2}')"
+    if [ -n "$latest" ] && [ "$latest" != "$current" ]; then
+      warn "RTK 최신 버전: $latest → 업데이트: bash setup.sh update-rtk"
+    elif [ -n "$latest" ]; then
+      info "RTK 최신 버전: $latest (최신)"
+    fi
     if grep -q 'rtk hook' "$HOME/.claude/settings.json" 2>/dev/null; then ok "RTK Claude Code 훅: 연결됨"; else warn "RTK Claude Code 훅: 연결 안 됨"; fi
     if grep -q 'rtk hook' "${CODEX_HOME:-$HOME/.codex}/hooks.json" 2>/dev/null; then ok "RTK Codex 훅: 연결됨"; fi
   else
@@ -182,10 +206,14 @@ ask() {   # ask "질문" → 예면 0
   case "$answer" in y|Y|yes|YES) return 0 ;; *) return 1 ;; esac
 }
 
-run_step() {   # run_step <Caveman|RTK> <install|uninstall>
+run_step() {   # run_step <Caveman|RTK> <install|update|uninstall>
   tool="$1"; action="$2"; script="$ROOT/$tool/scripts/$action.sh"
   [ -f "$script" ] || die "스크립트가 없습니다: $script"
-  if [ "$action" = "install" ]; then label="$tool 설치"; else label="$tool 삭제"; fi
+  case "$action" in
+    install) label="$tool 설치" ;;
+    update)  label="$tool 업데이트" ;;
+    *)       label="$tool 삭제" ;;
+  esac
   title "[$label] 계획 (아직 아무것도 바꾸지 않습니다)"
   # 하위 스크립트는 --yes 로 돌아 입력이 필요 없다. 표준 입력을 막아 두지 않으면
   # npx 같은 하위 명령이 사용자가 다음 질문에 답할 입력까지 읽어 간다 (2026-10-13 검증에서 확인)
@@ -203,6 +231,9 @@ run_cmd() {
     caveman)        run_step Caveman install ;;
     rtk)            run_step RTK install ;;
     all)            run_step Caveman install; run_step RTK install ;;
+    update)         run_step Caveman update; run_step RTK update ;;
+    update-caveman) run_step Caveman update ;;
+    update-rtk)     run_step RTK update ;;
     status)         show_status ;;
     remove-caveman) run_step Caveman uninstall ;;
     remove-rtk)     run_step RTK uninstall ;;
@@ -221,7 +252,7 @@ if [ -n "$CMD" ]; then
 fi
 
 # ---------- 메뉴 ----------
-# 1단계: 작업(설치/삭제/상태) → 2단계: 서비스(Caveman/RTK/둘 다) → 계획 → 확인 → 실행 → 처음 메뉴
+# 1단계: 작업(설치/업데이트/삭제/상태) → 2단계: 서비스(Caveman/RTK/둘 다) → 계획 → 확인 → 실행 → 처음 메뉴
 
 # SETUP_FORCE_MENU=1 은 입력을 파이프로 넣어 메뉴를 시험할 때만 쓴다
 if [ ! -t 0 ] && [ "${SETUP_FORCE_MENU:-0}" != "1" ]; then
@@ -277,10 +308,10 @@ menu_usage() {
   return 0
 }
 
-# menu_service install|uninstall → 고른 서비스 실행. 뒤로 가면 1 반환
+# menu_service install|update|uninstall → 고른 서비스 실행. 뒤로 가면 1 반환
 menu_service() {
   action="$1"
-  if [ "$action" = "install" ]; then verb="설치"; else verb="삭제"; fi
+  case "$action" in install) verb="설치" ;; update) verb="업데이트" ;; *) verb="삭제" ;; esac
   title "  ${verb}할 서비스를 고르세요"
   line
   printf '  1) Caveman   답변을 짧게 해 출력 토큰 절약 · 자체 측정: 비용 약 -7%%    [현재: %s]\n' "$(cave_state)"
@@ -306,17 +337,19 @@ while :; do
   title "  원하는 작업을 고르세요"
   line
   printf '  1) 설치\n'
-  printf '  2) 삭제\n'
-  printf '  3) 설치 상태 자세히 보기\n'
-  printf '  4) 사용량·절약 보기\n'
+  printf '  2) 업데이트            설치된 것을 최신 버전으로\n'
+  printf '  3) 삭제\n'
+  printf '  4) 설치 상태 자세히 보기 (최신 버전 비교 포함)\n'
+  printf '  5) 사용량·절약 보기\n'
   printf '  0) 끝내기\n'
   line
-  read_choice "1 2 3 4 0"
+  read_choice "1 2 3 4 5 0"
   case "$CHOICE" in
     1) menu_service install   || continue ;;
-    2) menu_service uninstall || continue ;;
-    3) show_status ;;
-    4) menu_usage             || continue ;;
+    2) menu_service update    || continue ;;
+    3) menu_service uninstall || continue ;;
+    4) show_status ;;
+    5) menu_usage             || continue ;;
     0) info "끝냅니다."; exit 0 ;;
   esac
   printf '\n  처음 메뉴로 돌아갈까요? [Y/n] '

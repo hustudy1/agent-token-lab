@@ -10,7 +10,7 @@
 # 조건
 #   A  기준      RTK 끔(훅 전체 끔) · Caveman 끔
 #   B  RTK       RTK 켬             · Caveman 끔
-#   C  Caveman   RTK 끔(훅 전체 끔) · Caveman 켬 (프롬프트 맨 앞에 /caveman full)
+#   C  Caveman   RTK 끔(훅 전체 끔) · Caveman 켬 (프롬프트 맨 앞에 /caveman)
 #   D  둘 다     RTK 켬             · Caveman 켬
 
 set -u
@@ -177,10 +177,11 @@ run_condition() {   # $1: 조건, $2: 회차
   c="$1"; r="$2"; name="${c}_r${r}"
   hooks=""
   case "$c" in A|C) hooks="--settings $HOOKS_OFF" ;; esac
-  # Caveman은 같은 프롬프트 맨 앞에 /caveman full 을 붙여 한 번의 호출로 켠다.
+  # Caveman은 같은 프롬프트 맨 앞에 /caveman 을 붙여 한 번의 호출로 켠다.
+  # (v3.1.0부터 모드가 /caveman · /ultracave · /megacave 로 바뀌었다. 2026-10-08 측정은 v2.7.0의 /caveman full)
   # (켜는 호출과 작업 호출을 나누면 세션 시작 비용이 두 번 들어 공정한 비교가 안 된다. 2026-10-07 시험으로 확인)
   prompt="$TASK"
-  case "$c" in C|D) prompt="/caveman full
+  case "$c" in C|D) prompt="/caveman
 $TASK" ;; esac
   # 허용 도구: 읽기 전용 작업에 필요한 것만. 공백이 든 항목이 있어 개별 인자로 넘긴다.
   # RTK가 켜지면 git log 가 rtk git log 로 바뀌고, 권한은 바뀐 명령 기준으로 검사하므로 Bash(rtk *)도 허용한다.

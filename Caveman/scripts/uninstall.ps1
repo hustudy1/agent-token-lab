@@ -4,7 +4,7 @@
   Caveman 제거 (Windows)
 
 .DESCRIPTION
-  확인 기준: caveman v2.7.0 · 2026-09-29 · PowerShell 5.1 이상
+  확인 기준: caveman v4.0.1 · 2026-10-22 · PowerShell 5.1 이상
   기본: Caveman 공식 제거 명령으로 스킬 등 설치한 것을 되돌립니다.
   -WithProxy: 직접 설치한 프록시 연결과 CLI(@caveman-ai/cli)까지 제거합니다.
 
@@ -22,7 +22,10 @@ param(
 Set-StrictMode -Version 2.0
 $ErrorActionPreference = 'Stop'
 
-$ScriptVersion = '2026-09-29'
+# Caveman CLI(3.0.0부터)와 일부 하위 도구는 사용 통계를 기본으로 보낸다. 이 스크립트가 부르는 명령은 모두 끈다.
+$env:DO_NOT_TRACK = '1'
+
+$ScriptVersion = '2026-10-22'
 $BackupRoot    = Join-Path $HOME '.ai_tokens_backup'
 $Failed        = New-Object System.Collections.ArrayList
 
@@ -87,14 +90,14 @@ if ($Help) { Show-Usage; exit 0 }
 
 $CodexDir = if ($env:CODEX_HOME) { $env:CODEX_HOME } else { Join-Path $HOME '.codex' }
 
-# Caveman 저장소 skills/ 폴더의 스킬 이름 (2026-09-29, v2.7.0 기준)
+# Caveman 저장소 skills/ 폴더의 스킬 이름 (2026-10-22 v4.0.1 저장소와 대조해 같음)
 $SkillNames = @(
   'caveman', 'cavecrew', 'caveman-commit', 'caveman-compress', 'caveman-discover',
   'caveman-evidence-review', 'caveman-explore', 'caveman-help', 'caveman-learn', 'caveman-manage',
   'caveman-optimize', 'caveman-review', 'caveman-setup', 'caveman-stats', 'investigate-first',
   'lean-build', 'megacave', 'migration', 'safe-refactor', 'surgical-patch', 'ultracave', 'verify-and-stop'
 )
-# 위 목록은 --skill '*'로 설치되는 22개 (2026-10-07 실제 설치로 확인, v2.7.0).
+# 위 목록은 --skill '*'로 설치되는 22개 (2026-10-07 v2.7.0 실제 설치로 확인).
 # 이름에 cave가 들어간 폴더는 목록에 없어도 함께 찾는다 (스킬이 늘어날 때 대비)
 
 # 에이전트별 전역 스킬 폴더
@@ -205,8 +208,15 @@ else {
 }
 
 Write-Step '나머지 제거 (Caveman 공식 제거 명령: 훅, 플러그인, MCP)'
+# npm 12부터 git 주소 패키지를 npx로 실행하려면 --allow-git=root 가 필요하다 (Caveman README, 2026-10-22 확인)
+$npxArgs = @('-y', 'github:JuliusBrussee/caveman', '--', '--uninstall')
+if (Test-Have 'npm') {
+  $npmMajor = 0
+  [void][int]::TryParse(((& npm -v 2>$null) -split '\.')[0], [ref]$npmMajor)
+  if ($npmMajor -ge 12) { $npxArgs = @('--allow-git=root') + $npxArgs }
+}
 if (Test-Have 'npx') {
-  if (-not (Invoke-Cmd 'npx' @('-y', 'github:JuliusBrussee/caveman', '--', '--uninstall'))) {
+  if (-not (Invoke-Cmd 'npx' $npxArgs)) {
     Add-Failure 'Caveman 제거 실패'
   }
 }

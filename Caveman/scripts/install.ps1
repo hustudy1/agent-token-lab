@@ -4,9 +4,9 @@
   Caveman 스킬 설치 (Windows)
 
 .DESCRIPTION
-  확인 기준: caveman v2.7.0 · 2026-09-29 · PowerShell 5.1 이상
-  설치하는 것: Caveman 스킬 (MIT)
-  설치하지 않는 것: Caveman 프록시와 CLI (BSL-1.1).
+  확인 기준: caveman v4.0.1 · 2026-10-22 · PowerShell 5.1 이상
+  설치하는 것: Caveman 스킬 (Apache-2.0, 3.0.0부터 저장소 전체)
+  설치하지 않는 것: Caveman CLI·프록시 (npx @caveman-ai/cli@latest). 사용 통계를 기본으로 보낸다.
     프록시는 API 주소를 로컬 프록시로 바꿔서 Claude Code의 MCP tool search를
     끄는 부작용이 있습니다. ..\01_install.md 4단계를 읽고 직접 설치하세요.
   제거: .\uninstall.ps1
@@ -27,7 +27,10 @@ param(
 Set-StrictMode -Version 2.0
 $ErrorActionPreference = 'Stop'
 
-$ScriptVersion = '2026-09-29'
+# Caveman CLI(3.0.0부터)와 일부 하위 도구는 사용 통계를 기본으로 보낸다. 이 스크립트가 부르는 명령은 모두 끈다.
+$env:DO_NOT_TRACK = '1'
+
+$ScriptVersion = '2026-10-22'
 $NodeMinMajor  = 22
 $NodeMinMinor  = 13
 $BackupRoot    = Join-Path $HOME '.ai_tokens_backup'
@@ -193,7 +196,8 @@ Write-Host @'
       4. npx skills ls -g 로 설치된 스킬을 확인합니다 (기본: caveman, caveman-compress).
       5. 며칠 쓴 뒤 npx ccusage@latest claude daily 로 설치 전과 비교합니다.
 
-    모드: /caveman lite | full | ultra   끄기: stop caveman
+    모드: /caveman (기본) · /ultracave (더 짧게) · /megacave (고전 중국어)   끄기: /caveman off 또는 stop caveman
+    업데이트: .\update.ps1
     제거: .\uninstall.ps1
 '@
 Write-Info "백업: $BackupDir"

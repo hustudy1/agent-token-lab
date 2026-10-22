@@ -4,7 +4,7 @@
   RTK 설치 (Windows)
 
 .DESCRIPTION
-  확인 기준: RTK v0.50.0 · 2026-09-29 · PowerShell 5.1 이상
+  확인 기준: RTK v1.0.1 · 2026-10-22 · PowerShell 5.1 이상 (Codex 훅은 v0.50.0부터)
   설치 방식: winget (rtk-ai.rtk)
   연결: Claude Code와 Codex 모두 PreToolUse 훅 (Codex 훅은 v0.50.0부터)
   제거: .\uninstall.ps1
@@ -24,7 +24,7 @@ param(
 Set-StrictMode -Version 2.0
 $ErrorActionPreference = 'Stop'
 
-$ScriptVersion = '2026-09-29'
+$ScriptVersion = '2026-10-22'
 $BackupRoot    = Join-Path $HOME '.ai_tokens_backup'
 $BackupDir     = Join-Path $BackupRoot ((Get-Date -Format 'yyyyMMdd-HHmmss') + '-rtk')
 $Failed        = New-Object System.Collections.ArrayList

@@ -1,28 +1,32 @@
 # Caveman 구축 방법
 
-> 확인 기준: caveman v2.7.0 · 2026-09-29 · macOS / Linux / Windows
+> 확인 기준: caveman v4.0.1 · skills CLI 1.7.4 · 2026-10-22 · macOS / Linux / Windows
 
 스킬(1~3단계)로 시작하고, 프록시(4단계)는 필요할 때만 추가하는 순서를 권장합니다.
 
 ## 구성요소
 
-| 구성요소 | 줄이는 곳 | 라이선스 | 이 폴더에서 다룸 |
-|---|---|---|---|
-| 스킬 | 에이전트가 쓰는 설명 문장 | MIT | O |
-| 프록시 | 에이전트가 읽는 로그, 테스트 출력, JSON, diff, 웹 페이지 | BSL-1.1 | O (선택) |
-| 미들웨어 | 직접 만든 에이전트 앱의 도구 결과 | MIT 클라이언트(알파) + BSL-1.1 런타임 | X |
+| 구성요소 | 줄이는 곳 | 이 폴더에서 다룸 |
+|---|---|---|
+| 스킬 | 에이전트가 쓰는 설명 문장 | O |
+| CLI (프록시 등) | 에이전트가 읽는 로그, 테스트 출력, JSON, 웹 페이지 + 모델 자동 선택(Auto) 등 | O (선택) |
+| 미들웨어 | 직접 만든 에이전트 앱의 도구 결과 | X |
 
-BSL-1.1 부분은 소스를 공개하지만 OSI 오픈소스 라이선스는 아닙니다. 자기 트래픽에는 무료로 쓸 수 있고, 제3자에게 호스팅하려면 상용 라이선스가 필요합니다. 각 버전은 2030-06-21과 출시 4년 뒤 중 이른 날짜에 Apache-2.0으로 바뀝니다.
+**라이선스:** v3.0.0(2026-09-30)부터 저장소 전체가 Apache-2.0입니다. 그 전 버전의 프록시는 BSL-1.1이었습니다.
+
+**v4.0.0(2026-10-13)부터 CLI는 기능 6개를 한 번에 설치하고 모두 켭니다:** 답변 줄이기(스킬), 입력 줄이기(프록시), Auto(질문마다 모델·추론 강도 자동 선택), Blocks(에이전트가 쓴 스크립트 재사용), 낭비 찾기(프롬프트 캐시 유지 포함), 웹 페이지 압축. `caveman status`로 켜진 것을 보고 `caveman off <기능>`으로 하나씩 끕니다.
 
 ## 측정 결과 요약
 
 | 출처 | 대상 | 결과 |
 |---|---|---|
-| Caveman 광고 | 채팅형 답변 | 토큰 −65% |
+| Caveman 초기 광고 (v3.1.0 이전) | 채팅형 답변 | 토큰 −65% |
+| Caveman 공식 (v3.1.0, claude-opus-5-5) | "간결하게 답하라"는 지시 대비 | `/caveman` 출력 중앙값 −3%, `/ultracave` −35% |
+| **agent-token-lab 자체 측정** (2026-10-08, v2.7.0) | 스킬, sonnet, 5회 평균 | 출력 −30%, 캐시 영향을 뺀 비용 **약 −7%** ([test/01_measure.md](../test/01_measure.md)) |
 | JetBrains (2026-07) | 스킬, Sonnet 5 low, 86개 작업 | 출력 토큰 −8.5% (592k → 542k), 품질 차이 없음 (p=0.82) |
 | Caveman 자체 벤치마크 | 스킬 + 프록시, Claude Code 54회 | 입력 토큰 −33.2% (독립 검증 없음) |
 
-광고 수치와 차이가 나는 이유가 있습니다. 코딩 에이전트의 출력은 대부분 코드, diff, 도구 호출입니다. 스킬은 이것들을 일부러 건드리지 않고, 그 사이의 설명 문장만 줄입니다.
+광고 수치와 차이가 나는 이유가 있습니다. 코딩 에이전트의 출력은 대부분 코드, diff, 도구 호출입니다. 스킬은 이것들을 일부러 건드리지 않고, 그 사이의 설명 문장만 줄입니다. Caveman도 v3.1.0부터 "새 모델은 이미 간결하게 답할 줄 안다"며 비교 기준을 바꿨습니다.
 
 ## 적용 범위
 
@@ -37,8 +41,8 @@ Claude Code의 터미널(CLI)과 **VS Code 확장**은 스킬 폴더(`~/.claude/
 | 이 저장소 스크립트 | 스킬 | `scripts/install.sh`, `scripts/install.ps1` | 백업, Node 확인, 에이전트 지정까지 한 번에. [아래](#스크립트로-설치제거) 참고 |
 | skills CLI | 스킬 | `npx skills add JuliusBrussee/caveman --skill caveman --skill caveman-compress -a claude-code -a codex -y -g` | README 기본 방식에서 설치 스킬을 2개로 좁힘. [1단계](#1-스킬-설치) 참고 |
 | Claude Code 플러그인 | 스킬 (Claude Code만) | `claude plugin marketplace add JuliusBrussee/caveman && claude plugin install caveman@caveman` | skills CLI의 `-a claude-code`와 **함께 쓰지 말 것** |
-| 공식 전체 설치 스크립트 | 스킬 + Claude Code 훅 + 상태줄 배지 | macOS/Linux: `curl ... install.sh \| bash`, Windows: `irm ... install.ps1 \| iex` | 설치된 에이전트를 모두 찾아 설정. [아래](#공식-전체-설치-스크립트-다른-방법) 참고 |
-| 프록시 CLI (선택) | 프록시 | `npm install -g @caveman-ai/cli && caveman setup --install` | 부작용 있음. [4단계](#4-선택-프록시) 참고 |
+| 공식 CLI (v4.0부터 기본 설치 방식) | 스킬 + 프록시 + Auto 등 6개 기능, 찾은 에이전트 전부 연결 | `npx @caveman-ai/cli@latest` | 바꾸는 범위가 가장 넓고 사용 통계를 기본으로 보냄. [4단계](#4-선택-공식-cli프록시) 참고 |
+| 공식 설치 스크립트 | 위 CLI와 같음 | macOS/Linux: `curl ... install.sh \| bash`, Windows: `irm ... install.ps1 \| iex` | v4.0부터 위 CLI 설치 화면으로 이어짐. [아래](#공식-설치-스크립트-다른-방법) 참고 |
 
 이 문서에서 다루지 않는 방식:
 
@@ -55,14 +59,19 @@ Claude Code의 터미널(CLI)과 **VS Code 확장**은 스킬 폴더(`~/.claude/
 |---|---|---|
 | [scripts/install.sh](scripts/install.sh) | macOS, Linux | 스킬 설치 |
 | [scripts/install.ps1](scripts/install.ps1) | Windows | 스킬 설치 |
+| [scripts/update.sh](scripts/update.sh) | macOS, Linux | 설치된 것만 최신으로 (스킬, 플러그인, CLI) |
+| [scripts/update.ps1](scripts/update.ps1) | Windows | 설치된 것만 최신으로 |
 | [scripts/uninstall.sh](scripts/uninstall.sh) | macOS, Linux | 제거 |
 | [scripts/uninstall.ps1](scripts/uninstall.ps1) | Windows | 제거 |
+
+세 스크립트 모두 하위 명령의 사용 통계 전송을 끕니다(`DO_NOT_TRACK=1`).
 
 ```bash
 # macOS / Linux
 cd Caveman/scripts
 ./install.sh --dry-run    # 먼저 실행할 명령만 확인
 ./install.sh
+./update.sh
 ./uninstall.sh
 ```
 
@@ -71,6 +80,7 @@ cd Caveman/scripts
 cd Caveman\scripts
 powershell -ExecutionPolicy Bypass -File .\install.ps1 -DryRun
 powershell -ExecutionPolicy Bypass -File .\install.ps1
+powershell -ExecutionPolicy Bypass -File .\update.ps1
 powershell -ExecutionPolicy Bypass -File .\uninstall.ps1
 ```
 
@@ -112,16 +122,22 @@ npx skills add JuliusBrussee/caveman --skill caveman --skill caveman-compress -a
 # npx skills add JuliusBrussee/caveman --skill caveman --skill caveman-compress -a codex -y -g                # Codex만
 npx skills ls -g                    # 설치된 스킬 확인
 
-# 4. (선택) 프록시
-npm install -g @caveman-ai/cli && caveman setup --install
-caveman telemetry off
+# 4. (선택) 공식 CLI·프록시
+npx @caveman-ai/cli@latest          # 설치 화면. 6개 기능을 모두 켬
+caveman telemetry off               # 사용 통계 끄기 (기본: 켜짐)
+caveman status                      # 켜진 기능 보기
+caveman off browse                  # 기능 하나 끄기
 caveman trial -- claude             # 효과 A/B 측정
 caveman trial report
-caveman claude                      # 프록시 켜고 실행 (또는 caveman codex, caveman wrap claude)
 
-# 5. 제거
+# 5. 업데이트
+npx skills update caveman caveman-compress -g -y                  # 스킬
+claude plugin update caveman@caveman                              # 플러그인으로 설치했다면
+npm install -g @caveman-ai/cli@latest                             # CLI를 설치했다면
+
+# 6. 제거
 npx skills remove -g -a claude-code -y caveman caveman-compress   # 스킬 (Codex는 -a codex)
-npx -y github:JuliusBrussee/caveman -- --uninstall               # 훅·플러그인·MCP
+npx -y github:JuliusBrussee/caveman -- --uninstall               # 훅·플러그인·MCP (npm 12 이상: npx --allow-git=root -y ...)
 caveman disable claude
 npm uninstall -g @caveman-ai/cli
 ```
@@ -129,9 +145,10 @@ npm uninstall -g @caveman-ai/cli
 **에이전트 안에서 입력**
 
 ```text
-/caveman            켜기 (자동으로 켜지지 않았을 때)
-/caveman lite       모드 변경: lite | full | ultra
-stop caveman        끄기
+/caveman            켜기 (자동으로 켜지지 않았을 때). Codex에서는 $caveman
+/ultracave          더 짧게 (문법까지 생략)
+/caveman status     지금 모드 보기
+/caveman off        끄기 (또는 stop caveman)
 ```
 
 ## 0. 준비
@@ -191,18 +208,18 @@ claude plugin marketplace add JuliusBrussee/caveman && claude plugin install cav
 npx skills add JuliusBrussee/caveman --skill caveman --skill caveman-compress -a codex -y -g   # Codex도 쓰면
 ```
 
-### 공식 전체 설치 스크립트 (다른 방법)
+### 공식 설치 스크립트 (다른 방법)
 
-Caveman이 제공하는 설치 스크립트입니다. 스킬 외에 **Claude Code 훅과 상태줄 배지**까지 설정하고, 컴퓨터에 설치된 지원 에이전트를 모두 찾아 설정합니다(없는 에이전트는 건너뜀). 다시 실행해도 안전하다고 README에 적혀 있습니다. Node.js 22.13 이상이 필요합니다.
+Caveman이 제공하는 설치 스크립트입니다. v4.0부터는 [4단계](#4-선택-공식-cli프록시)의 CLI 설치 화면(`npx @caveman-ai/cli`)으로 이어져서, 스킬뿐 아니라 프록시와 Auto까지 설치합니다. Node.js 22.13 이상이 필요합니다.
 
 ```bash
 # macOS / Linux
-curl -fsSL https://raw.githubusercontent.com/JuliusBrussee/caveman/v2.7.0/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/JuliusBrussee/caveman/v4.0.1/install.sh | bash
 ```
 
 ```powershell
 # Windows (PowerShell 5.1 이상)
-irm https://raw.githubusercontent.com/JuliusBrussee/caveman/v2.7.0/install.ps1 | iex
+irm https://raw.githubusercontent.com/JuliusBrussee/caveman/v4.0.1/install.ps1 | iex
 ```
 
 위 skills CLI 방식보다 바꾸는 범위가 넓습니다. 무엇이 설치되는지 정확히 통제하고 싶다면 skills CLI 방식을 쓰세요.
@@ -252,11 +269,13 @@ npx skills remove -g -a claude-code -y <스킬 이름> [<스킬 이름> ...]
 
 | 명령 | 동작 |
 |---|---|
-| `/caveman lite` | 짧지만 정중하게 |
-| `/caveman` 또는 `/caveman full` | 기본값. 강하게 줄임 |
-| `/caveman ultra` | 최소 단어만 |
-| `/caveman wenyan-lite` / `wenyan-full` / `wenyan-ultra` | 고전 중국어 문체 |
-| `stop caveman`, `normal mode`, `/caveman off` | 끄기 |
+| `/caveman` | 기본값. 짧게 답함 (Codex: `$caveman`) |
+| `/ultracave` | 문법까지 생략하고 최소 단어만 |
+| `/megacave` | 고전 중국어 문체 (토큰이 가장 적음) |
+| `/caveman status` | 지금 모드 보기 |
+| `/caveman off`, `stop caveman` | 끄기 |
+
+v3.1.0(2026-10-04)부터 강도 6단계(lite/full/ultra, wenyan-lite/full/ultra)가 세 스킬로 바뀌었습니다. `/caveman ultra`는 `/ultracave`로, `/caveman wenyan`은 `/megacave`로 이어집니다. `/ultracave`, `/megacave`는 기본 설치(`caveman`, `caveman-compress`)에 없으니 `--all-skills`로 설치하세요.
 
 | 추가 명령 | 동작 | 기본 설치 |
 |---|---|---|
@@ -272,32 +291,40 @@ npx skills remove -g -a claude-code -y <스킬 이름> [<스킬 이름> ...]
 - **`/caveman-compress CLAUDE.md`**: CLAUDE.md는 매 세션 로딩되므로 줄이면 효과가 계속 누적됩니다. 결과는 diff로 꼭 검토하세요. 줄인 CLAUDE.md는 다음 세션부터 적용됩니다(`/clear`, `/compact`, 재시작 후).
 - **한국어**: 한국어 답변이나 한국어 문서에서 얼마나 줄어드는지 측정한 자료는 찾지 못했습니다. 직접 측정이 필요합니다.
 
-## 4. (선택) 프록시
+## 4. (선택) 공식 CLI·프록시
 
-프록시는 에이전트와 API 사이에서 로그, 테스트 출력, JSON, diff를 압축합니다. 원본은 로컬 SQLite에 보관하므로 에이전트가 필요하면 전체 내용을 다시 가져올 수 있습니다.
+프록시는 에이전트와 API 사이에서 로그, 테스트 출력, JSON을 압축합니다. 원본은 로컬에 보관하므로 에이전트가 필요하면 전체 내용을 다시 가져올 수 있습니다. v4.0부터는 CLI 하나가 프록시와 나머지 기능을 함께 설치합니다.
 
 ### 설치
 
 ```bash
-npm install -g @caveman-ai/cli && caveman setup --install
+npx @caveman-ai/cli@latest     # 설치 화면: 찾은 에이전트와 바꿀 내용을 보여 주고 Enter로 적용
+caveman setup                  # 나중에 설치 화면을 다시 열 때
 ```
 
-### 텔레메트리 끄기
+v4.0 이전 CLI가 있으면 `@latest`를 꼭 붙이세요. 그러지 않으면 예전 버전이 실행됩니다(README).
 
-CLI는 익명 사용 통계를 **기본으로 보냅니다**. 원하지 않으면 끄세요.
+### 보내는 정보
+
+| 무엇이 | 언제 | 보내는 것 |
+|---|---|---|
+| CLI | **기본으로 켜짐** | 실행한 명령, 토큰 수, 무작위 설치 ID, OS, IP (프롬프트·코드·파일 경로는 보내지 않음) |
+| Auto | 로그인하고 Auto 모델을 고를 때만 | **최근 질문과 에이전트가 붙인 내용(CLAUDE.md, 메모리, @로 넣은 파일 등)** 을 Caveman Cloud로 |
+| 스킬 | 보내지 않음 | `/caveman-compress`만 압축할 파일을 설정한 모델 제공자에게 보냄 |
 
 ```bash
-caveman telemetry off   # 또는 환경변수 DO_NOT_TRACK=1
+caveman telemetry off   # CLI 사용 통계 끄기 (또는 환경변수 DO_NOT_TRACK=1)
 ```
 
-README에 따르면 프록시 경로에 Caveman 서버는 없고, 스킬과 훅은 로컬에서만 동작합니다.
+회사 코드나 개인정보가 있는 프로젝트에서는 Auto를 쓰지 않는 것을 권합니다. 자세한 목록과 삭제 방법은 [SECURITY.md](https://github.com/JuliusBrussee/caveman/blob/main/SECURITY.md)에 있습니다.
 
 ### 에이전트 연결
 
 ```bash
-caveman claude        # 프록시를 계속 켜 두고 Claude Code 실행
-caveman codex         # Codex
-caveman wrap claude   # 이번 세션만. 끝나면 흔적을 남기지 않음
+caveman claude        # Claude Code를 Caveman 위에서 실행 (codex · gemini · opencode 등도 같은 방식)
+caveman status        # 켜진 기능과 연결된 에이전트
+caveman off <기능>    # output · input · waste-fixes · routing · scripts · browse 중 하나 끄기
+caveman doctor        # 문제와 해결 방법을 한 줄씩
 ```
 
 - 설정 파일은 수정하지 않습니다.
@@ -311,7 +338,7 @@ caveman wrap claude   # 이번 세션만. 끝나면 흔적을 남기지 않음
 - Claude Code의 명령 출력 축소 훅. Codex에는 걸지 않습니다. Caveman README는 그 이유를 Codex 런타임이 명령 재작성을 거부하기 때문이라고 설명합니다. 다만 RTK는 v0.50.0부터 Codex에서 재작성 훅을 쓰므로, 이 설명은 오래된 것일 수 있습니다.
 - 새로 설치하는 스킬의 pixel mode (스킬 본문을 PNG 이미지로 바꿔 읽게 함)
 
-위 기능은 `~/.caveman-cloud/config.json`에서 끌 수 있습니다.
+위 기능은 `caveman off <기능>`으로 끕니다. v4.0부터 설정은 `~/.caveman/cloud.json` 한 곳에 모입니다(예전 설정은 한 번 옮겨짐).
 
 ### 주의: Claude Code의 MCP tool search가 꺼질 수 있음
 
@@ -336,7 +363,21 @@ caveman stats             # 사용 기록과 비용 추정
 
 `trial`은 자체 프록시가 필요합니다. 이미 `caveman claude`를 켰다면 먼저 `caveman disable claude`를 실행하고, 끝나면 `caveman enable claude`로 되돌리세요.
 
-## 5. 제거
+## 5. 업데이트
+
+설치되어 있는 것만 최신으로 올립니다. 이 저장소의 `scripts/update.sh`(Windows: `update.ps1`)는 아래를 알아서 골라 실행하고, 스킬 내용이 실제로 바뀌었는지도 알려 줍니다.
+
+```bash
+npx skills update caveman caveman-compress -g -y   # skills CLI로 설치한 스킬
+claude plugin update caveman@caveman               # 플러그인으로 설치했다면
+npm install -g @caveman-ai/cli@latest              # CLI를 설치했다면
+```
+
+`npx skills ls -g`로 지금 설치된 스킬을 먼저 보면 어떤 이름을 올릴지 알 수 있습니다.
+
+> **업데이트 후 위치가 바뀔 수 있습니다.** skills CLI 1.7.4의 `update`는 새 버전을 `~/.agents/skills/`에 두고, `~/.claude/skills/`에는 그 폴더를 가리키는 링크를 만듭니다(2026-10-22 이 Mac에서 확인). Claude Code는 링크를 그대로 읽어서 동작에는 차이가 없습니다. 다만 `~/.agents/skills/`는 Codex도 읽는 위치라서 Codex에도 그 스킬이 보이게 됩니다. 제거 스크립트는 두 위치를 모두 지웁니다(확인).
+
+## 6. 제거
 
 ```bash
 # 1) skills CLI로 설치한 스킬 (Codex는 -a codex)
@@ -344,6 +385,7 @@ npx skills remove -g -a claude-code -y caveman caveman-compress
 
 # 2) 공식 제거 명령: 훅, 플러그인, MCP 설정
 npx -y github:JuliusBrussee/caveman -- --uninstall
+#    npm 12 이상이면: npx --allow-git=root -y github:JuliusBrussee/caveman -- --uninstall
 
 # 3) 프록시를 설치했다면
 caveman disable claude                               # 프록시 연결 해제 (codex 등도 같은 방식)
@@ -354,18 +396,22 @@ npm uninstall -g @caveman-ai/cli                     # CLI 제거
 
 플러그인(방법 B)으로 설치했다면 Claude Code의 `/plugin` 메뉴에서 제거하세요.
 
-## 6. RTK와 함께 쓸 때
+## 7. RTK와 함께 쓸 때
 
 - **스킬 + RTK**: 줄이는 곳이 달라서 함께 써도 됩니다.
 - **프록시 + RTK**: 겹칩니다.
   - 프록시 기본 연결은 Claude Code에 명령 출력 축소 훅을 겁니다. RTK도 같은 Bash 명령에 PreToolUse 훅을 겁니다.
   - Claude Code는 매칭되는 훅을 병렬로 실행합니다. 두 훅이 모두 명령을 바꾸면 어느 쪽이 적용되는지 공식 문서에 없습니다. [UNKNOWN]
-  - 둘 중 하나만 쓰거나, `~/.caveman-cloud/config.json`에서 축소 훅을 끄세요.
+  - 둘 중 하나만 쓰거나, `caveman off input`으로 입력 줄이기 기능을 끄세요.
 
 ## 출처
 
 - [Caveman README](https://github.com/JuliusBrussee/caveman) — 설치, 모드, 프록시, 텔레메트리, 라이선스
 - [Caveman INSTALL.md](https://github.com/JuliusBrussee/caveman/blob/main/INSTALL.md) — 에이전트별 설치
+- [Caveman v4.0.0 릴리스](https://github.com/JuliusBrussee/caveman/releases/tag/v4.0.0) — CLI 하나로 설치, 6개 기능, 설정 위치
+- [Caveman v3.1.0 릴리스](https://github.com/JuliusBrussee/caveman/releases/tag/v3.1.0) — 세 스킬로 바뀐 모드, 공식 재측정
+- [Caveman v3.0.0 릴리스](https://github.com/JuliusBrussee/caveman/releases/tag/v3.0.0) — Apache-2.0 전환, 사용 통계 기본 전송
+- [skills CLI](https://github.com/vercel-labs/skills) — `npx skills add / update / remove`
 - [Claude Code: MCP (tool search)](https://code.claude.com/docs/en/mcp) — `ANTHROPIC_BASE_URL`과 tool search
 - [Claude Code: Hooks](https://code.claude.com/docs/en/hooks) — 매칭 훅 병렬 실행
 - [Claude Code: Prompt caching](https://code.claude.com/docs/en/prompt-caching) — 스킬 호출과 캐시, 게이트웨이 경유 시 캐시

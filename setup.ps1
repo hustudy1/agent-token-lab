@@ -8,7 +8,8 @@
     powershell -ExecutionPolicy Bypass -File .\setup.ps1                 메뉴에서 고르기
     powershell -ExecutionPolicy Bypass -File .\setup.ps1 caveman -Yes    메뉴 없이 바로 실행
 
-  명령: caveman | rtk | all | status | remove-caveman | remove-rtk | remove-all
+  명령: caveman | rtk | all | update | update-caveman | update-rtk | status
+        remove-caveman | remove-rtk | remove-all
         usage | sessions | context [프로젝트 폴더] | gain | results
   설치·제거 로직은 Caveman\scripts, RTK\scripts 의 스크립트에 있고, 이 파일은 그것을 불러 쓴다.
   실행 순서: 계획 보여주기(dry-run) → 확인 → 실행. -Yes 를 주면 확인 없이 진행한다.
@@ -16,7 +17,8 @@
 [CmdletBinding()]
 param(
   [Parameter(Position = 0)]
-  [ValidateSet('', 'caveman', 'rtk', 'all', 'status', 'remove-caveman', 'remove-rtk', 'remove-all',
+  [ValidateSet('', 'caveman', 'rtk', 'all', 'update', 'update-caveman', 'update-rtk', 'status',
+               'remove-caveman', 'remove-rtk', 'remove-all',
                'usage', 'sessions', 'context', 'gain', 'results')]
   [string]$Command = '',
   # context 명령에서 함께 점검할 프로젝트 폴더
@@ -46,7 +48,10 @@ function Show-Status {
     $names = @(Get-ChildItem -LiteralPath $d -Filter '*cave*' -ErrorAction SilentlyContinue | ForEach-Object { $_.Name })
     if ($names.Count -gt 0) { $lines += "    ${d}: $($names -join ' ')" }
   }
-  if ($lines.Count -gt 0) { Write-Ok 'Caveman 스킬:'; $lines | ForEach-Object { Write-Host $_ } }
+  if ($lines.Count -gt 0) {
+    Write-Ok 'Caveman 스킬:'; $lines | ForEach-Object { Write-Host $_ }
+    Write-Info 'Caveman 최신 확인·적용: setup.bat update-caveman'
+  }
   else { Write-Info 'Caveman: 설치 안 됨' }
 
   $rtk = Get-Command rtk -ErrorAction SilentlyContinue
@@ -55,6 +60,14 @@ function Show-Status {
     $ver = (& rtk --version 2>$null) -join ' '
     $ErrorActionPreference = $prev
     Write-Ok "RTK: $ver ($($rtk.Source))"
+    $latest = $null
+    try {
+      $r = Invoke-RestMethod -Uri 'https://api.github.com/repos/rtk-ai/rtk/releases/latest' -TimeoutSec 5 -Headers @{ 'User-Agent' = 'agent-token-lab' }
+      if ($r.tag_name -match '(\d+\.\d+\.\d+)') { $latest = $Matches[1] }
+    }
+    catch { }
+    if ($latest -and ($ver -notmatch [regex]::Escape($latest))) { Write-Warn "RTK 최신 버전: $latest → 업데이트: setup.bat update-rtk" }
+    elseif ($latest) { Write-Info "RTK 최신 버전: $latest (최신)" }
     $settings = [IO.Path]::Combine($HOME, '.claude', 'settings.json')
     if ((Test-Path -LiteralPath $settings) -and (Select-String -LiteralPath $settings -Pattern 'rtk hook' -SimpleMatch -Quiet)) {
       Write-Ok 'RTK Claude Code 훅: 연결됨'
@@ -362,7 +375,7 @@ function Invoke-Step {
   param([string]$Tool, [string]$Action)
   $script = [IO.Path]::Combine($Root, $Tool, 'scripts', "$Action.ps1")
   if (-not (Test-Path -LiteralPath $script)) { throw "스크립트가 없습니다: $script" }
-  $label = if ($Action -eq 'install') { "$Tool 설치" } else { "$Tool 삭제" }
+  $label = switch ($Action) { 'install' { "$Tool 설치" } 'update' { "$Tool 업데이트" } default { "$Tool 삭제" } }
 
   Write-Title "[$label] 계획 (아직 아무것도 바꾸지 않습니다)"
   $global:LASTEXITCODE = 0
@@ -382,6 +395,9 @@ function Start-SetupCommand {
     'caveman'        { Invoke-Step 'Caveman' 'install' }
     'rtk'            { Invoke-Step 'RTK' 'install' }
     'all'            { Invoke-Step 'Caveman' 'install'; Invoke-Step 'RTK' 'install' }
+    'update'         { Invoke-Step 'Caveman' 'update'; Invoke-Step 'RTK' 'update' }
+    'update-caveman' { Invoke-Step 'Caveman' 'update' }
+    'update-rtk'     { Invoke-Step 'RTK' 'update' }
     'status'         { Show-Status }
     'remove-caveman' { Invoke-Step 'Caveman' 'uninstall' }
     'remove-rtk'     { Invoke-Step 'RTK' 'uninstall' }
@@ -397,7 +413,7 @@ function Start-SetupCommand {
 if ($Command) { Start-SetupCommand $Command; exit 0 }
 
 # ---------- 메뉴 ----------
-# 1단계: 작업(설치/삭제/상태) → 2단계: 서비스(Caveman/RTK/둘 다) → 계획 → 확인 → 실행 → 처음 메뉴
+# 1단계: 작업(설치/업데이트/삭제/상태) → 2단계: 서비스(Caveman/RTK/둘 다) → 계획 → 확인 → 실행 → 처음 메뉴
 
 function Get-CaveState {
   $codexDir = if ($env:CODEX_HOME) { $env:CODEX_HOME } else { Join-Path $HOME '.codex' }
@@ -456,7 +472,7 @@ function Show-UsageMenu {
 # 고른 서비스를 실행한다. 뒤로 가면 $false
 function Show-ServiceMenu {
   param([string]$Action)
-  $verb = if ($Action -eq 'install') { '설치' } else { '삭제' }
+  $verb = switch ($Action) { 'install' { '설치' } 'update' { '업데이트' } default { '삭제' } }
   Write-Title "  ${verb}할 서비스를 고르세요"
   Write-Line
   Write-Host "  1) Caveman   답변을 짧게 해 출력 토큰 절약 · 자체 측정: 비용 약 -7%    [현재: $(Get-CaveState)]"
@@ -481,17 +497,18 @@ while ($true) {
   Write-Title '  원하는 작업을 고르세요'
   Write-Line
   Write-Host '  1) 설치'
-  Write-Host '  2) 삭제'
-  Write-Host '  3) 설치 상태 자세히 보기'
-  Write-Host '  4) 사용량·절약 보기'
+  Write-Host '  2) 업데이트            설치된 것을 최신 버전으로'
+  Write-Host '  3) 삭제'
+  Write-Host '  4) 설치 상태 자세히 보기 (최신 버전 비교 포함)'
+  Write-Host '  5) 사용량·절약 보기'
   Write-Host '  0) 끝내기'
   Write-Line
-  $choice = Read-Choice @('1', '2', '3', '4', '0')
+  $choice = Read-Choice @('1', '2', '3', '4', '5', '0')
   if ($choice -eq '0') { Write-Info '끝냅니다.'; exit 0 }
-  if ($choice -eq '3') { Show-Status }
-  elseif ($choice -eq '4') { if (-not (Show-UsageMenu)) { continue } }
+  if ($choice -eq '4') { Show-Status }
+  elseif ($choice -eq '5') { if (-not (Show-UsageMenu)) { continue } }
   else {
-    $action = if ($choice -eq '1') { 'install' } else { 'uninstall' }
+    $action = switch ($choice) { '1' { 'install' } '2' { 'update' } default { 'uninstall' } }
     if (-not (Show-ServiceMenu $action)) { continue }
   }
   Write-Host ''

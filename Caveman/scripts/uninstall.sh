@@ -3,17 +3,20 @@
 # Caveman 제거 (macOS / Linux)
 #   사용법: ./uninstall.sh [옵션]      Windows는 uninstall.ps1
 #
-# 확인 기준: caveman v2.7.0 · 2026-09-29 · macOS 기본 bash 3.2에서 동작
+# 확인 기준: caveman v4.0.1 · 2026-10-22 · macOS 기본 bash 3.2에서 동작
 # 기본: Caveman 공식 제거 명령으로 스킬 등 설치한 것을 되돌립니다.
 # --with-proxy: 직접 설치한 프록시 연결과 CLI(@caveman-ai/cli)까지 제거합니다.
 
 set -u
 
-SCRIPT_VERSION="2026-09-29"
+# Caveman CLI(3.0.0부터)와 일부 하위 도구는 사용 통계를 기본으로 보낸다. 이 스크립트가 부르는 명령은 모두 끈다.
+export DO_NOT_TRACK=1
+
+SCRIPT_VERSION="2026-10-22"
 BACKUP_ROOT="$HOME/.ai_tokens_backup"
 CODEX_DIR="${CODEX_HOME:-$HOME/.codex}"
 
-# --skill '*'로 설치되는 Caveman 스킬 22개 (2026-10-07 실제 설치로 확인, v2.7.0)
+# --skill '*'로 설치되는 Caveman 스킬 22개 (2026-10-07 v2.7.0 실제 설치로 확인, 2026-10-22 v4.0.1 저장소와 대조해 같음)
 # 이름에 cave가 들어간 폴더는 이 목록에 없어도 함께 찾는다 (스킬이 늘어날 때 대비)
 SKILL_NAMES="caveman cavecrew caveman-commit caveman-compress caveman-discover
   caveman-evidence-review caveman-explore caveman-help caveman-learn caveman-manage
@@ -209,8 +212,13 @@ else
 fi
 
 step "나머지 제거 (Caveman 공식 제거 명령: 훅, 플러그인, MCP)"
+# npm 12부터 git 주소 패키지를 npx로 실행하려면 --allow-git=root 가 필요하다 (Caveman README, 2026-10-22 확인)
+NPX_GIT=""
+npm_major="$(npm -v 2>/dev/null | cut -d. -f1)"
+case "$npm_major" in ''|*[!0-9]*) : ;; *) [ "$npm_major" -ge 12 ] && NPX_GIT="--allow-git=root" ;; esac
 if have npx; then
-  run npx -y github:JuliusBrussee/caveman -- --uninstall || fail "Caveman 제거 실패"
+  # shellcheck disable=SC2086
+  run npx $NPX_GIT -y github:JuliusBrussee/caveman -- --uninstall || fail "Caveman 제거 실패"
 else
   fail "npx가 없어 제거할 수 없습니다. Node.js를 설치한 뒤 다시 실행하세요."
 fi

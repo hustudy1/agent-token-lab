@@ -1,6 +1,8 @@
 # RTK 구축 방법
 
-> 확인 기준: RTK v0.50.0 (2026-09-24 릴리스) · 2026-09-29 · macOS / Linux / Windows
+> 확인 기준: RTK v1.0.1 (2026-10-14 릴리스) · 2026-10-22 · macOS / Linux / Windows
+>
+> **v1.0.0(2026-10-13) 변경:** `rtk proxy <명령>`이 `rtk bypass <명령>`으로 바뀌었고(옛 이름도 동작), `--ultra-compact`가 없어졌습니다. 이 문서와 스크립트가 쓰는 `rtk init` 옵션은 그대로입니다(2026-10-22 v1.0.1로 설치·업데이트·제거 확인).
 
 ## 개요
 
@@ -62,6 +64,8 @@ Codex에서의 독립 측정은 찾지 못했습니다. [UNKNOWN]
 |---|---|---|
 | [scripts/install.sh](scripts/install.sh) | macOS, Linux | 바이너리 설치(Homebrew, 없으면 공식 설치 스크립트) + 에이전트 연결 |
 | [scripts/install.ps1](scripts/install.ps1) | Windows | 바이너리 설치(winget) + 에이전트 연결 |
+| [scripts/update.sh](scripts/update.sh) | macOS, Linux | 최신으로 올리고 기존 연결을 다시 맺음 (Homebrew 또는 공식 설치 스크립트) |
+| [scripts/update.ps1](scripts/update.ps1) | Windows | 최신으로 올리고 기존 연결을 다시 맺음 (winget) |
 | [scripts/uninstall.sh](scripts/uninstall.sh) | macOS, Linux | 연결 해제 + 바이너리 삭제 |
 | [scripts/uninstall.ps1](scripts/uninstall.ps1) | Windows | 연결 해제 + 바이너리 삭제 |
 
@@ -70,6 +74,7 @@ Codex에서의 독립 측정은 찾지 못했습니다. [UNKNOWN]
 cd RTK/scripts
 ./install.sh --dry-run    # 먼저 실행할 명령만 확인
 ./install.sh
+./update.sh
 ./uninstall.sh
 ```
 
@@ -78,6 +83,7 @@ cd RTK/scripts
 cd RTK\scripts
 powershell -ExecutionPolicy Bypass -File .\install.ps1 -DryRun
 powershell -ExecutionPolicy Bypass -File .\install.ps1
+powershell -ExecutionPolicy Bypass -File .\update.ps1
 powershell -ExecutionPolicy Bypass -File .\uninstall.ps1
 ```
 
@@ -136,6 +142,11 @@ rtk init -g --codex
 # 6. 효과 확인 (rtk gain은 자체 추정치이므로 실제 사용량과 함께 비교)
 rtk gain --daily
 npx ccusage@latest claude daily
+
+# 업데이트 → 끝나면 Claude Code·Codex 재시작
+brew upgrade rtk                   # Windows: winget upgrade rtk-ai.rtk
+rtk init -g --auto-patch           # 새 버전의 RTK.md 반영 (훅만 쓰면 --hook-only 추가)
+rtk init -g --codex                # Codex를 연결했다면
 
 # 7. 제거 → 끝나면 Claude Code·Codex 재시작
 rtk init -g --uninstall            # Claude Code 연결 해제
@@ -232,7 +243,7 @@ rtk --version
 rtk gain        # 절약 대시보드가 나오면 정상
 ```
 
-`rtk gain`이 실패하면 다른 `rtk`가 설치된 것입니다. README 예시에는 `rtk 0.28.2`로 나오지만 이는 오래된 값이고, 2026-09-29 기준 최신 릴리스는 v0.50.0입니다. Codex 훅 연동은 v0.50.0부터이므로 Codex를 쓴다면 v0.50.0 이상인지 확인하세요.
+`rtk gain`이 실패하면 다른 `rtk`가 설치된 것입니다. 2026-10-22 기준 최신 릴리스는 v1.0.1입니다. Codex 훅 연동은 v0.50.0부터이므로 Codex를 쓴다면 그 이상인지 확인하세요.
 
 ## 3. Claude Code 연결
 
@@ -324,6 +335,16 @@ rtk discover       # 놓친 절약 기회 찾기
 
 효과는 같은 작업을 RTK를 켠 상태와 끈 상태로 실행해서 비교하세요. 비교 기준은 `ccusage`나 Claude Code `/usage` 같은 **실제 사용량**입니다.
 
+## 업데이트
+
+`scripts/update.sh`(Windows: `update.ps1`)가 아래를 한 번에 합니다. 이미 최신이면 아무것도 하지 않습니다.
+
+1. 설치된 버전과 GitHub 최신 릴리스를 비교합니다.
+2. 바이너리를 올립니다: Homebrew로 설치했으면 `brew upgrade rtk`, 공식 설치 스크립트로 설치했으면 스크립트를 다시 실행합니다. Windows는 `winget upgrade rtk-ai.rtk`입니다.
+3. 이미 연결된 에이전트만 같은 방식으로 다시 연결합니다. 새 버전의 지시문(`RTK.md`)을 받기 위해서입니다. 다시 연결해도 훅과 `@RTK.md` 줄은 하나만 남습니다(2026-10-22 확인).
+
+바이너리 업데이트가 실패하면 연결은 건드리지 않습니다. 바꾸기 전 설정은 `~/.ai_tokens_backup/<타임스탬프>-rtk-update/`에 백업합니다.
+
 ## 7. 제거
 
 먼저 에이전트 연결을 해제하고, 그다음 바이너리를 지웁니다. 순서가 바뀌면 `rtk` 명령이 없어서 연결 해제를 못 합니다.
@@ -358,6 +379,7 @@ winget uninstall rtk-ai.rtk       # Windows winget
 - [RTK README](https://github.com/rtk-ai/rtk) — 설치, 에이전트별 연동 방식, 설정, 텔레메트리, 제거
 - [RTK INSTALL.md](https://github.com/rtk-ai/rtk/blob/master/INSTALL.md) — `rtk init`이 만드는 파일, 백업, 137줄 CLAUDE.md 주의
 - [RTK Supported Agents 가이드](https://github.com/rtk-ai/rtk/blob/master/docs/guide/getting-started/supported-agents.md) — Codex 훅 연동, 바뀌는 파일, `--codex --uninstall`
+- [RTK 릴리스 v1.0.0](https://github.com/rtk-ai/rtk/releases/tag/v1.0.0) — `rtk proxy` → `rtk bypass`, `--ultra-compact` 제거
 - [RTK 릴리스 v0.50.0](https://github.com/rtk-ai/rtk/releases/tag/v0.50.0) — Codex 명령 직접 재작성 훅 추가
 - [RTK 릴리스 v0.49.0](https://github.com/rtk-ai/rtk/releases/tag/v0.49.0) — 복구 저장소 SQLite 전환
 - [Codex: Hooks](https://learn.chatgpt.com/docs/hooks) — PreToolUse `updatedInput`
